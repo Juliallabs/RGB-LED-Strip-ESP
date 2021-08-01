@@ -1,21 +1,25 @@
-#include <Arduino.h>
-#include <String.h>
+// Bibliotecas para ESP32
+
 #include <WiFi.h>
-#include <IRCClient.h>
 #include <ESPmDNS.h>
 #include <SPIFFS.h>
+
+
+// Bibliotecas comuns
 #include <WiFiUdp.h>
 #include <WiFiClient.h>
 #include <WebServer.h>
 #include <ArduinoOTA.h>
+#include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h> 
+
+// Constantes -------------------------------------------
 
 //definindo pinos leds
 #define RED 25
 #define GREEN 26
 #define BLUE 27
-
 
 // definindo parametros do controle de PWM
 const int freq = 5000;
@@ -24,13 +28,21 @@ const int greenChannel = 1;
 const int blueChannel = 2;
 const int resolution = 8;
 
-// definindo WIFI config
+// Wi-Fi
 WebServer server(80);
-const char *SSID = "Manoel";
-const char *PASSWORD = "Manobinho";
+const char *SSID = "sua wifi";
+const char *PASSWORD = "sua senha";
+
 IPAddress ip(192,168,0,120);
 IPAddress gateway(192,168,0,1);
 IPAddress subnet(255,255,255,0);
+
+void SelectRGB( int R, int G, int B){
+  ledcWrite(redChannel,R);
+  ledcWrite(greenChannel,G);
+  ledcWrite(blueChannel,B);
+
+}
 
 //funcoes LEDS
 void fadeColor(int ColorChannel){
@@ -50,6 +62,27 @@ void fadeColor(int ColorChannel){
 
   }
 
+  void fade2Color(int ColorChannel1 ,int ColorChannel2 ){
+// increase the LED brightness
+  SelectRGB(0,0,0);
+  for(int dutyCycle = 0; dutyCycle <= 255; dutyCycle++){   
+    // changing the LED brightness with PWM
+    ledcWrite(ColorChannel1, dutyCycle);
+    ledcWrite(ColorChannel2, 255-dutyCycle);
+    delay(15);
+  }
+  SelectRGB(0,0,0);
+  // decrease the LED brightness
+  for(int dutyCycle = 255; dutyCycle >= 0; dutyCycle--){
+    // changing the LED brightness with PWM
+    ledcWrite(ColorChannel1, dutyCycle);  
+    ledcWrite(ColorChannel2, dutyCycle-255); 
+    delay(15);
+  }
+  SelectRGB(0,0,0);
+  ledcWrite(ColorChannel2, 255);
+  }
+
 void selectColor(String color){
   //String color = "a2275b";
 
@@ -66,84 +99,7 @@ void selectColor(String color){
   //Serial.println("BLUE:", (int) strtol( &b[0], NULL, 16));
 }
 
-void SelectRGB( int R, int G, int B){
-  ledcWrite(redChannel,R);
-  ledcWrite(greenChannel,G);
-  ledcWrite(blueChannel,B);
-
-}
-
-// IRC - TWITCH
-
-#define IRC_SERVER   "irc.chat.twitch.tv"
-#define IRC_PORT     6667
-const String twitchChannelName = "julialabs";
-#define secret_ssid "my ssid"
-//The name that you want the bot to have
-#define TWITCH_BOT_NAME "julialabs"
-//OAuth Key for your twitch bot
-// https://twitchapps.com/tmi/
-#define TWITCH_OAUTH_TOKEN "oauth:hs8rbw7xetlomrels99sc04c0tj05w"
-String ircChannel = "";
-WiFiClient wiFiClient;
-IRCClient client(IRC_SERVER, IRC_PORT, wiFiClient);
-
-void sendTwitchMessage(String message) {
-  client.sendMessage(ircChannel, message);
-}
-
-void callback(IRCMessage ircMessage) {
-  //Serial.println("In CallBack");
-
-  if (ircMessage.command == "PRIVMSG" && ircMessage.text[0] != '\001') {
-    //Serial.println("Passed private message.");
-
-    ircMessage.nick.toUpperCase();
-
-    String message("<" + ircMessage.nick + "> " + ircMessage.text);
-
-    //prints chat to serial
-    Serial.println(message);
-
-//this is where you would replace these elements to match your streaming configureation. 
-if (ircMessage.text.indexOf("HYDRABOT") > -1 && ircMessage.nick == "julialabs")
-    {
-    delay(500);
-    SelectRGB(0,0,0);
-    delay(500);
-    SelectRGB(0,206,209);
-    delay(500);
-    SelectRGB(0,0,0);
-    delay(500);
-    SelectRGB(0,206,209);
-    delay(500);
-    SelectRGB(0,0,0);
-    delay(500);
-    SelectRGB(0,206,209);
-    }
-
-    if (ircMessage.text.indexOf("streaming") > -1 && ircMessage.nick == "STREAMELEMENTS")
-      {
-
-    }
-
-  if (ircMessage.text.indexOf("offline") > -1 && ircMessage.nick == "STREAMELEMENTS")
-      {
-
-    }
-    //servo control
-if (ircMessage.text.indexOf("following") > -1 && ircMessage.nick == "STREAMELEMENTS")
-{
-
-}
-    return;
-  }
-}
-
-
-
-
-//funcoes WIFI
+// funcoes OTA
 void handleRoot()
 {
   server.send(200, "text/plain", "hello from esp8266!");
@@ -165,6 +121,7 @@ void handleNotFound()
   }
   server.send(404, "text/plain", message);
 }
+
 void OTAconfig(){
   //Wi-Fi
 #ifdef ESP8266
@@ -267,6 +224,7 @@ void OTAconfig(){
   Serial.println(WiFi.localIP());
 
 }
+
 void SERVERcomands(){
   server.on("/", handleRoot);
 
@@ -323,7 +281,32 @@ void SERVERcomands(){
     SelectRGB(75,0,130);
 
   });
+  
+    server.on("/Laranja", []() {
+    server.send(200, "text/plain", "LEDS ON");
+    SelectRGB(0,0,0);
+    SelectRGB(255,69,0);
 
+  });
+
+    server.on("/Vermelho", []() {
+    server.send(200, "text/plain", "LEDS ON");
+    SelectRGB(0,0,0);
+    SelectRGB(255,10,5);
+
+  });
+
+    server.on("/Amarelo", []() {
+    server.send(200, "text/plain", "LEDS ON");
+    SelectRGB(0,0,0);
+    SelectRGB(255,255,0);
+
+  });
+
+    server.on("/hydrabot", []() {
+    server.send(200, "text/plain", "LEDS ON");
+      fade2Color(blueChannel,greenChannel);
+  });
 
   server.onNotFound(handleNotFound);
   server.begin();
@@ -331,11 +314,14 @@ void SERVERcomands(){
 
 
 }
+// Setup ------------------------------------------------
 
-
-void setup() {
-  //pinos leds
-  Serial.begin(9600);
+void setup(){
+  WiFi.config(ip,gateway,subnet);
+  OTAconfig();
+  SERVERcomands();
+  
+  //Serial.begin(115200);
   pinMode(RED,OUTPUT);
   pinMode(BLUE,OUTPUT);
   pinMode(GREEN,OUTPUT);  
@@ -350,38 +336,14 @@ void setup() {
   ledcAttachPin(RED, redChannel);
   ledcAttachPin(GREEN, greenChannel);
   ledcAttachPin(BLUE, blueChannel);
-  //inicia conexão com wifi
-  OTAconfig();
-  SERVERcomands();
-  WiFi.config(ip,gateway,subnet);
   SelectRGB(255,69,0);
-// IRC TWITCH
-  ircChannel = "#" + twitchChannelName;
-  client.sendRaw("JOIN " + ircChannel);
-  client.setCallback(callback);
+
 
 }
 
-void loop() {
-
+// Loop --------------------------------------------
+void loop()
+{
   ArduinoOTA.handle();
   server.handleClient();
-/*
-if (!client.connected()) {
-    SelectRGB(255,0,0);
-    delay(500);
-    SelectRGB(0,0,0);
-    if (client.connect(TWITCH_BOT_NAME, "", TWITCH_OAUTH_TOKEN)) { //inicia a conexao com as credenciais informadas lá em cima
-      client.sendRaw("JOIN " + ircChannel);
-      sendTwitchMessage("LEDS ON <3!"); //escreve no chat que esta conectado e pronto, se conectado de fato.
-    } else {
-      delay(5000);
-    }
-    return;
-  }
-  client.loop();
-
-*/
-
-
 }
