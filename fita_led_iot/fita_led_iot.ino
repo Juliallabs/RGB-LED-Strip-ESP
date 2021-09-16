@@ -1,42 +1,52 @@
-// Bibliotecas para ESP32
-
+#include <Arduino.h>
+#include <String.h>
 #include <WiFi.h>
+#include <IRCClient.h>
 #include <ESPmDNS.h>
 #include <SPIFFS.h>
-
-
-// Bibliotecas comuns
 #include <WiFiUdp.h>
 #include <WiFiClient.h>
 #include <WebServer.h>
 #include <ArduinoOTA.h>
-#include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h> 
 
-// Constantes -------------------------------------------
+// definindo WIFI config
+WebServer server(80);
+const char *SSID = "login";
+const char *PASSWORD = "senha";
+IPAddress ip (192,168,0,120);
+IPAddress gateway(192,168,0,1);
+IPAddress subnet(255,255,255,0);
+
 
 //definindo pinos leds
 #define RED 25
 #define GREEN 26
 #define BLUE 27
-
 // definindo parametros do controle de PWM
 const int freq = 5000;
 const int redChannel = 0;
 const int greenChannel = 1;
 const int blueChannel = 2;
 const int resolution = 8;
+//funcoes LEDS
+void fadeColor(int ColorChannel){
+// aumenta brilho do LED
+  for(int dutyCycle = 0; dutyCycle <= 255; dutyCycle++){   
+    // modifica o brilho do LED com PWM
+    ledcWrite(ColorChannel, dutyCycle);
+    delay(15);
+  }
 
-// Wi-Fi
-WebServer server(80);
-const char *SSID = "sua wifi";
-const char *PASSWORD = "sua senha";
+  // diminui brilho do LED
+  for(int dutyCycle = 255; dutyCycle >= 0; dutyCycle--){
+     // modifica o brilho do LED com PWM
+    ledcWrite(ColorChannel, dutyCycle);   
+    delay(15);
+  }
 
-IPAddress ip(192,168,0,120);
-IPAddress gateway(192,168,0,1);
-IPAddress subnet(255,255,255,0);
-
+  }
 void SelectRGB( int R, int G, int B){
   ledcWrite(redChannel,R);
   ledcWrite(greenChannel,G);
@@ -44,62 +54,7 @@ void SelectRGB( int R, int G, int B){
 
 }
 
-//funcoes LEDS
-void fadeColor(int ColorChannel){
-// increase the LED brightness
-  for(int dutyCycle = 0; dutyCycle <= 255; dutyCycle++){   
-    // changing the LED brightness with PWM
-    ledcWrite(ColorChannel, dutyCycle);
-    delay(15);
-  }
-
-  // decrease the LED brightness
-  for(int dutyCycle = 255; dutyCycle >= 0; dutyCycle--){
-    // changing the LED brightness with PWM
-    ledcWrite(ColorChannel, dutyCycle);   
-    delay(15);
-  }
-
-  }
-
-  void fade2Color(int ColorChannel1 ,int ColorChannel2 ){
-// increase the LED brightness
-  SelectRGB(0,0,0);
-  for(int dutyCycle = 0; dutyCycle <= 255; dutyCycle++){   
-    // changing the LED brightness with PWM
-    ledcWrite(ColorChannel1, dutyCycle);
-    ledcWrite(ColorChannel2, 255-dutyCycle);
-    delay(15);
-  }
-  SelectRGB(0,0,0);
-  // decrease the LED brightness
-  for(int dutyCycle = 255; dutyCycle >= 0; dutyCycle--){
-    // changing the LED brightness with PWM
-    ledcWrite(ColorChannel1, dutyCycle);  
-    ledcWrite(ColorChannel2, dutyCycle-255); 
-    delay(15);
-  }
-  SelectRGB(0,0,0);
-  ledcWrite(ColorChannel2, 255);
-  }
-
-void selectColor(String color){
-  //String color = "a2275b";
-
-  String r = color.substring(0, 1);
-  String g = color.substring(2, 3); 
-  String b = color.substring(4, 5);
-
-  ledcWrite(redChannel, (int) strtol( &r[0], NULL, 16));
-  ledcWrite(greenChannel, (int) strtol( &g[0], NULL, 16));
-  ledcWrite(blueChannel, (int) strtol( &b[0], NULL, 16));
-
-  Serial.println(r);
-  //Serial.println("GREEN:", (int) strtol( &g[0], NULL, 16));
-  //Serial.println("BLUE:", (int) strtol( &b[0], NULL, 16));
-}
-
-// funcoes OTA
+//FUNCOEC WIFI
 void handleRoot()
 {
   server.send(200, "text/plain", "hello from esp8266!");
@@ -121,7 +76,7 @@ void handleNotFound()
   }
   server.send(404, "text/plain", message);
 }
-
+//CONFIGURAÇÃO ATUALIZAÇÃO VIA REDE
 void OTAconfig(){
   //Wi-Fi
 #ifdef ESP8266
@@ -281,32 +236,36 @@ void SERVERcomands(){
     SelectRGB(75,0,130);
 
   });
-  
-    server.on("/Laranja", []() {
-    server.send(200, "text/plain", "LEDS ON");
-    SelectRGB(0,0,0);
-    SelectRGB(255,69,0);
-
-  });
 
     server.on("/Vermelho", []() {
     server.send(200, "text/plain", "LEDS ON");
     SelectRGB(0,0,0);
-    SelectRGB(255,10,5);
-
+    SelectRGB(255,0,0);
   });
-
     server.on("/Amarelo", []() {
     server.send(200, "text/plain", "LEDS ON");
     SelectRGB(0,0,0);
     SelectRGB(255,255,0);
-
   });
-
-    server.on("/hydrabot", []() {
+    server.on("/Ciano", []() {
     server.send(200, "text/plain", "LEDS ON");
-      fade2Color(blueChannel,greenChannel);
+    SelectRGB(0,0,0);
+    SelectRGB(0,255,255);
+
   });
+    server.on("/caquinha", []() {
+    server.send(200, "text/plain", "LEDS ON");
+    SelectRGB(0,0,0);
+    SelectRGB(224,255,255);
+
+  });
+    server.on("/Verde", []() {
+    server.send(200, "text/plain", "LEDS ON");
+    SelectRGB(0,0,0);
+    SelectRGB(0,255,0);
+
+  });
+
 
   server.onNotFound(handleNotFound);
   server.begin();
@@ -314,14 +273,10 @@ void SERVERcomands(){
 
 
 }
-// Setup ------------------------------------------------
 
-void setup(){
-  WiFi.config(ip,gateway,subnet);
-  OTAconfig();
-  SERVERcomands();
-  
-  //Serial.begin(115200);
+void setup() {
+  //pinos leds
+  Serial.begin(9600);
   pinMode(RED,OUTPUT);
   pinMode(BLUE,OUTPUT);
   pinMode(GREEN,OUTPUT);  
@@ -336,14 +291,16 @@ void setup(){
   ledcAttachPin(RED, redChannel);
   ledcAttachPin(GREEN, greenChannel);
   ledcAttachPin(BLUE, blueChannel);
+  //inicia conexão com wifi
+  OTAconfig();
+  SERVERcomands();
+  WiFi.config(ip,gateway,subnet);
   SelectRGB(255,69,0);
-
 
 }
 
-// Loop --------------------------------------------
-void loop()
-{
+void loop() {
+
   ArduinoOTA.handle();
   server.handleClient();
 }
